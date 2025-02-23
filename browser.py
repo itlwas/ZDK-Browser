@@ -9,6 +9,79 @@ from PyQt6.QtWebEngineCore import QWebEngineDownloadRequest
 from widgets import CustomTabWidget
 from utils import create_table, load_data, save_data
 
+# Новый класс для кастомной панели заголовка окна
+class TitleBar(QWidget):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent_window = parent
+        self.setAutoFillBackground(True)
+        self.setStyleSheet("background-color: #0e0e0e;")
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(5, 0, 5, 0)
+        layout.setSpacing(5)
+        # Метка заголовка
+        self.title_label = QLabel("LightWork Browser", self)
+        self.title_label.setStyleSheet("color: #fff; font: bold 14px;")
+        layout.addWidget(self.title_label)
+        layout.addStretch()
+
+        # Кнопка сворачивания окна
+        self.min_btn = QToolButton(self)
+        self.min_btn.setIcon(QIcon("assets/icons_dark_theme/minimize.png"))
+        self.min_btn.setFixedSize(32, 32)
+        self.min_btn.setStyleSheet("background: transparent;")
+        self.min_btn.clicked.connect(self.parent_window.showMinimized)
+        layout.addWidget(self.min_btn)
+
+        # Кнопка разворачивания/восстановления окна
+        self.max_btn = QToolButton(self)
+        self.max_btn.setIcon(QIcon("assets/icons_dark_theme/maximize.png"))
+        self.max_btn.setFixedSize(32, 32)
+        self.max_btn.setStyleSheet("background: transparent;")
+        self.max_btn.clicked.connect(self.parent_window.toggle_maximize)
+        layout.addWidget(self.max_btn)
+
+        # Кнопка закрытия окна
+        self.close_btn = QToolButton(self)
+        self.close_btn.setIcon(QIcon("assets/icons_dark_theme/close.png"))
+        self.close_btn.setFixedSize(32, 32)
+        self.close_btn.setStyleSheet(
+            "background: transparent;"
+            "QToolButton:hover {background-color: #d10808;}"
+            "QToolButton:pressed {background-color: #ff3232;}"
+        )
+        self.close_btn.clicked.connect(self.parent_window.close)
+        layout.addWidget(self.close_btn)
+
+    def update_maximize_icon(self):
+        if self.parent_window.isMaximized():
+            self.max_btn.setIcon(QIcon("assets/icons_dark_theme/restore.png"))
+        else:
+            self.max_btn.setIcon(QIcon("assets/icons_dark_theme/maximize.png"))
+
+    # Реализация перетаскивания окна за область заголовка
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_pos = event.globalPosition().toPoint()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.MouseButton.LeftButton:
+            self.parent_window.move(self.parent_window.pos() + event.globalPosition().toPoint() - self.drag_pos)
+            self.drag_pos = event.globalPosition().toPoint()
+            event.accept()
+
+    # Обработка двойного клика по панели для переключения состояния окна
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.parent_window.toggle_maximize()
+            self.update_maximize_icon()
+            event.accept()
+
+
 class BrowserTab(QWidget):
     def __init__(self, parent_browser):
         super().__init__()
@@ -144,28 +217,16 @@ class Browser(QMainWindow):
         self.add_tab()
         self.apply_dark_theme()
         self.download_table = None
-        self.init_title_bar()
-
-    def init_title_bar(self):
-        layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addStretch()
-        for icon, func, style in [
-            ("minimize", self.showMinimized, ""),
-            ("maximize", self.toggle_maximize, ""),
-            ("close", self.close, "QPushButton:hover {background-color:#d10808;} QPushButton:pressed {background-color:#ff3232;}")
-        ]:
-            btn = QPushButton(QIcon(f"assets/icons_dark_theme/{icon}.png"), "")
-            btn.setStyleSheet("background-color:#0e0e0e; border:none; margin:0; padding:0;" + style)
-            btn.setFixedSize(32, 32)
-            btn.clicked.connect(func)
-            layout.addWidget(btn)
-        widget = QWidget()
-        widget.setLayout(layout)
-        self.setMenuWidget(widget)
+        # Инициализация кастомной панели заголовка
+        self.title_bar = TitleBar(self)
+        self.setMenuWidget(self.title_bar)
 
     def toggle_maximize(self):
-        self.showNormal() if self.isMaximized() else self.showMaximized()
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+        self.title_bar.update_maximize_icon()
 
     def setup_download_tab(self):
         downloads_tab = QWidget()
@@ -283,12 +344,8 @@ class Browser(QMainWindow):
         event.accept()
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.drag_position = event.globalPosition().toPoint()
-            event.accept()
+        # Перетаскивание окна осуществляется через TitleBar, поэтому здесь оставляем базовую обработку
+        event.accept()
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.MouseButton.LeftButton:
-            self.move(self.pos() + event.globalPosition().toPoint() - self.drag_position)
-            self.drag_position = event.globalPosition().toPoint()
-            event.accept()
+        event.accept()
