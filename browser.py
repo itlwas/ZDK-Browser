@@ -2,12 +2,12 @@ import os
 from PyQt6.QtCore import QUrl, Qt, QDateTime
 from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit,
-                             QToolBar, QToolButton, QMenu, QPushButton, QTableWidgetItem)
+                             QToolBar, QToolButton, QMenu, QPushButton, QTableWidgetItem, QLabel)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineDownloadRequest
 
 from widgets import CustomTabWidget
-from utils import create_table
+from utils import create_table, load_data, save_data
 
 class BrowserTab(QWidget):
     def __init__(self, parent_browser):
@@ -34,6 +34,7 @@ class BrowserTab(QWidget):
         self.browser.iconChanged.connect(self.update_tab_icon)
         self.browser.urlChanged.connect(lambda url: self.url_bar.setText(url.toString()))
         self.browser.page().profile().downloadRequested.connect(self.handle_download)
+
     def add_left_buttons(self):
         for icon, func in [("back", self.browser.back),
                            ("forward", self.browser.forward),
@@ -42,6 +43,7 @@ class BrowserTab(QWidget):
             act = QAction(QIcon(f"assets/icons_dark_theme/{icon}.png"), "", self)
             act.triggered.connect(func)
             self.toolbar.addAction(act)
+
     def add_right_buttons(self):
         btn = QToolButton(self)
         btn.setIcon(QIcon("assets/icons_dark_theme/menu.png"))
@@ -52,6 +54,7 @@ class BrowserTab(QWidget):
         )
         btn.setMenu(self.create_menu())
         self.toolbar2.addWidget(btn)
+
     def create_menu(self):
         menu = QMenu(self)
         menu.setStyleSheet(
@@ -66,14 +69,17 @@ class BrowserTab(QWidget):
             act.triggered.connect(slot)
             menu.addAction(act)
         return menu
+
     def update_tab_title(self, title):
         idx = self.parent_browser.tabs.indexOf(self)
         if idx != -1:
             self.parent_browser.tabs.setTabText(idx, title[:10])
+
     def update_tab_icon(self, icon):
         idx = self.parent_browser.tabs.indexOf(self)
         if idx != -1:
             self.parent_browser.tabs.setTabIcon(idx, icon)
+
     def navigate_to_url(self):
         url = self.url_bar.text().strip()
         if not url:
@@ -84,8 +90,10 @@ class BrowserTab(QWidget):
             url = "http://" + url
         self.browser.setUrl(QUrl(url))
         self.update_history()
+
     def open_new_tab(self):
         self.parent_browser.add_tab()
+
     def update_history(self):
         try:
             title = self.browser.title()
@@ -96,6 +104,7 @@ class BrowserTab(QWidget):
                 self.parent_browser.update_history_table()
         except Exception as e:
             print(f"Ошибка истории: {e}")
+
     def handle_download(self, download: QWebEngineDownloadRequest):
         try:
             from PyQt6.QtWidgets import QFileDialog
@@ -128,15 +137,15 @@ class Browser(QMainWindow):
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         self.tabs = CustomTabWidget(self)
         self.setCentralWidget(self.tabs)
+        # Загрузка сохранённых данных
+        data = load_data()
+        self.history_data = data.get("history", [])
+        self.settings_data = data.get("settings", {"homepage": "http://www.google.com"})
         self.add_tab()
         self.apply_dark_theme()
-        self.history_data = [
-            {"title": "Google", "url": "https://www.google.com", "date": "2025-01-01 10:00:00"},
-            {"title": "YouTube", "url": "https://www.youtube.com", "date": "2025-01-01 10:00:00"},
-            {"title": "Wikipedia", "url": "https://www.wikipedia.org", "date": "2025-01-01 10:00:00"}
-        ]
         self.download_table = None
         self.init_title_bar()
+
     def init_title_bar(self):
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -154,14 +163,17 @@ class Browser(QMainWindow):
         widget = QWidget()
         widget.setLayout(layout)
         self.setMenuWidget(widget)
+
     def toggle_maximize(self):
         self.showNormal() if self.isMaximized() else self.showMaximized()
+
     def setup_download_tab(self):
         downloads_tab = QWidget()
         downloads_tab.setLayout(QVBoxLayout())
         self.download_table = create_table(["Имя файла", "Размер", "Дата", "Статус"])
         downloads_tab.layout().addWidget(self.download_table)
         self.tabs.add_tab(downloads_tab, "Загрузки")
+
     def setup_history_tab(self):
         history_tab = QWidget()
         history_tab.setLayout(QVBoxLayout())
@@ -169,14 +181,17 @@ class Browser(QMainWindow):
         history_tab.layout().addWidget(self.history_table)
         self.update_history_table()
         self.tabs.add_tab(history_tab, "История")
+
     def add_download_entry(self, filename, size, status="В процессе"):
         row = self.download_table.rowCount()
         self.download_table.insertRow(row)
         size_mb = f"{size/(1024*1024):.2f} MB" if size else "—"
         for col, text in enumerate([filename, size_mb, QDateTime.currentDateTime().toString(), status]):
             self.download_table.setItem(row, col, QTableWidgetItem(text))
+
     def update_download_status(self, row, status):
         self.download_table.setItem(row, 3, QTableWidgetItem(status))
+
     def update_history_table(self):
         if not hasattr(self, 'history_table'):
             return
@@ -188,14 +203,20 @@ class Browser(QMainWindow):
             self.history_table.setItem(row, 0, QTableWidgetItem(entry["title"]))
             self.history_table.setItem(row, 1, QTableWidgetItem(entry["url"]))
             self.history_table.setItem(row, 2, QTableWidgetItem(entry["date"]))
+
     def add_history_entry(self, title, url, date):
         self.history_data.append({"title": title, "url": url, "date": date})
+        self.save_data()
+
     def open_history(self):
         self.add_special_tab("История", "history")
+
     def open_downloads(self):
         self.add_special_tab("Загрузки", "downloads")
+
     def open_settings(self):
         self.add_special_tab("Настройки", "settings")
+
     def apply_dark_theme(self):
         self.setStyleSheet("""
         QWidget {background-color:#0e0e0e; color:#fff; font-family:Manrope; font-size:13px; border:none; padding:0;}
@@ -209,11 +230,16 @@ class Browser(QMainWindow):
         QToolButton:hover {background-color:#2c2c2c; border:none;}
         QToolTip {background-color:#212121; color:#fff; font-size:13px; border:none; border-radius:8px; padding:2px; font-family:Manrope;}
         """)
-    def add_tab(self, url="http://www.google.com"):
+
+    def add_tab(self, url=None):
+        # Используем домашнюю страницу из настроек, если URL не передан
+        if url is None:
+            url = self.settings_data.get("homepage", "http://www.google.com")
         tab = BrowserTab(self)
         tab.browser.setUrl(QUrl(url))
         idx = self.tabs.add_tab(tab, "Новая вкладка")
         self.tabs.setCurrentIndex(idx)
+
     def add_special_tab(self, title, tab_type):
         for i in range(self.tabs.count()):
             if self.tabs.tabText(i) == title:
@@ -225,15 +251,42 @@ class Browser(QMainWindow):
             self.setup_settings_tab()
         elif tab_type == "downloads":
             self.setup_download_tab()
+
     def setup_settings_tab(self):
         settings_tab = QWidget()
-        settings_tab.setLayout(QVBoxLayout())
-        # Добавьте нужные настройки здесь
+        layout = QVBoxLayout()
+        settings_tab.setLayout(layout)
+        # Пример настройки: выбор домашней страницы
+        homepage_label = QLabel("Домашняя страница:")
+        homepage_edit = QLineEdit()
+        homepage_edit.setText(self.settings_data.get("homepage", "http://www.google.com"))
+        save_button = QPushButton("Сохранить настройки")
+        layout.addWidget(homepage_label)
+        layout.addWidget(homepage_edit)
+        layout.addWidget(save_button)
+
+        def save_settings():
+            self.settings_data["homepage"] = homepage_edit.text().strip() or "http://www.google.com"
+            self.save_data()
+        save_button.clicked.connect(save_settings)
         self.tabs.add_tab(settings_tab, "Настройки")
+
+    def save_data(self):
+        data = {
+            "history": self.history_data,
+            "settings": self.settings_data
+        }
+        save_data(data)
+
+    def closeEvent(self, event):
+        self.save_data()
+        event.accept()
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.drag_position = event.globalPosition().toPoint()
             event.accept()
+
     def mouseMoveEvent(self, event):
         if event.buttons() == Qt.MouseButton.LeftButton:
             self.move(self.pos() + event.globalPosition().toPoint() - self.drag_position)
