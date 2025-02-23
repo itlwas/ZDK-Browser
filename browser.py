@@ -1,86 +1,16 @@
 import os
-from PyQt6.QtCore import QUrl, Qt, QDateTime
+from PyQt6.QtCore import QUrl, QDateTime
 from PyQt6.QtGui import QIcon, QAction
-from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit,
-                             QToolBar, QToolButton, QMenu, QPushButton, QTableWidgetItem, QLabel, QComboBox)
+from PyQt6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit,
+    QToolBar, QToolButton, QMenu, QPushButton, QTableWidgetItem,
+    QLabel, QComboBox
+)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineDownloadRequest
 
 from widgets import CustomTabWidget
 from utils import create_table, load_data, save_data
-
-# Новый класс для кастомной панели заголовка окна
-class TitleBar(QWidget):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.parent_window = parent
-        self.setAutoFillBackground(True)
-        self.setStyleSheet("background-color: #0e0e0e;")
-        self.init_ui()
-
-    def init_ui(self):
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(5, 0, 5, 0)
-        layout.setSpacing(5)
-        # Метка заголовка
-        self.title_label = QLabel("LightWork Browser", self)
-        self.title_label.setStyleSheet("color: #fff; font: bold 14px;")
-        layout.addWidget(self.title_label)
-        layout.addStretch()
-
-        # Кнопка сворачивания окна
-        self.min_btn = QToolButton(self)
-        self.min_btn.setIcon(QIcon(f"{self.parent_window.theme_icon_folder}/minimize.png"))
-        self.min_btn.setFixedSize(32, 32)
-        self.min_btn.setStyleSheet("background: transparent;")
-        self.min_btn.clicked.connect(self.parent_window.showMinimized)
-        layout.addWidget(self.min_btn)
-
-        # Кнопка разворачивания/восстановления окна
-        self.max_btn = QToolButton(self)
-        self.max_btn.setIcon(QIcon(f"{self.parent_window.theme_icon_folder}/maximize.png"))
-        self.max_btn.setFixedSize(32, 32)
-        self.max_btn.setStyleSheet("background: transparent;")
-        self.max_btn.clicked.connect(self.parent_window.toggle_maximize)
-        layout.addWidget(self.max_btn)
-
-        # Кнопка закрытия окна
-        self.close_btn = QToolButton(self)
-        self.close_btn.setIcon(QIcon(f"{self.parent_window.theme_icon_folder}/close.png"))
-        self.close_btn.setFixedSize(32, 32)
-        self.close_btn.setStyleSheet(
-            "background: transparent;"
-            "QToolButton:hover {background-color: #d10808;}"
-            "QToolButton:pressed {background-color: #ff3232;}"
-        )
-        self.close_btn.clicked.connect(self.parent_window.close)
-        layout.addWidget(self.close_btn)
-
-    def update_maximize_icon(self):
-        if self.parent_window.isMaximized():
-            self.max_btn.setIcon(QIcon(f"{self.parent_window.theme_icon_folder}/restore.png"))
-        else:
-            self.max_btn.setIcon(QIcon(f"{self.parent_window.theme_icon_folder}/maximize.png"))
-
-    # Реализация перетаскивания окна за область заголовка
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.drag_pos = event.globalPosition().toPoint()
-            event.accept()
-
-    def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.MouseButton.LeftButton:
-            self.parent_window.move(self.parent_window.pos() + event.globalPosition().toPoint() - self.drag_pos)
-            self.drag_pos = event.globalPosition().toPoint()
-            event.accept()
-
-    # Обработка двойного клика по панели для переключения состояния окна
-    def mouseDoubleClickEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.parent_window.toggle_maximize()
-            self.update_maximize_icon()
-            event.accept()
-
 
 class BrowserTab(QWidget):
     def __init__(self, parent_browser):
@@ -207,27 +137,21 @@ class Browser(QMainWindow):
         super().__init__()
         self.setWindowTitle("LightWork Browser")
         self.setGeometry(300, 300, 1280, 720)
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
+        # Используем стандартное оформление окна (нативная рамка и системное меню)
         self.tabs = CustomTabWidget(self)
         self.setCentralWidget(self.tabs)
         # Загрузка сохранённых данных
         data = load_data()
         self.history_data = data.get("history", [])
-        self.settings_data = data.get("settings", {"homepage": "http://www.google.com", "language": "ru", "theme": "dark"})
+        self.settings_data = data.get("settings", {
+            "homepage": "http://www.google.com",
+            "language": "ru",
+            "theme": "dark"
+        })
         # Установка темы на основе настроек
         self.apply_theme()
         self.download_table = None
-        # Инициализация кастомной панели заголовка
-        self.title_bar = TitleBar(self)
-        self.setMenuWidget(self.title_bar)
         self.add_tab()
-
-    def toggle_maximize(self):
-        if self.isMaximized():
-            self.showNormal()
-        else:
-            self.showMaximized()
-        self.title_bar.update_maximize_icon()
 
     def setup_download_tab(self):
         downloads_tab = QWidget()
@@ -316,7 +240,6 @@ class Browser(QMainWindow):
             self.apply_light_theme()
 
     def add_tab(self, url=None):
-        # Используем домашнюю страницу из настроек, если URL не передан
         if url is None:
             url = self.settings_data.get("homepage", "http://www.google.com")
         tab = BrowserTab(self)
@@ -340,13 +263,11 @@ class Browser(QMainWindow):
         settings_tab = QWidget()
         layout = QVBoxLayout()
         settings_tab.setLayout(layout)
-        # Настройка домашней страницы
         homepage_label = QLabel("Домашняя страница:")
         homepage_edit = QLineEdit()
         homepage_edit.setText(self.settings_data.get("homepage", "http://www.google.com"))
         layout.addWidget(homepage_label)
         layout.addWidget(homepage_edit)
-        # Настройка локализации
         lang_label = QLabel("Локализация:")
         lang_combo = QComboBox()
         lang_combo.addItem("Русский", "ru")
@@ -357,7 +278,6 @@ class Browser(QMainWindow):
             lang_combo.setCurrentIndex(index)
         layout.addWidget(lang_label)
         layout.addWidget(lang_combo)
-        # Настройка темы
         theme_label = QLabel("Тема:")
         theme_combo = QComboBox()
         theme_combo.addItem("Темная", "dark")
@@ -368,7 +288,6 @@ class Browser(QMainWindow):
             theme_combo.setCurrentIndex(index)
         layout.addWidget(theme_label)
         layout.addWidget(theme_combo)
-        # Кнопка сохранения настроек
         save_button = QPushButton("Сохранить настройки")
         layout.addWidget(save_button)
 
@@ -390,11 +309,4 @@ class Browser(QMainWindow):
 
     def closeEvent(self, event):
         self.save_data()
-        event.accept()
-
-    def mousePressEvent(self, event):
-        # Перетаскивание окна осуществляется через TitleBar, поэтому здесь оставляем базовую обработку
-        event.accept()
-
-    def mouseMoveEvent(self, event):
         event.accept()
