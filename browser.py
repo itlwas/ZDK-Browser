@@ -2,7 +2,7 @@ import os
 from PyQt6.QtCore import QUrl, Qt, QDateTime
 from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit,
-                             QToolBar, QToolButton, QMenu, QPushButton, QTableWidgetItem, QLabel)
+                             QToolBar, QToolButton, QMenu, QPushButton, QTableWidgetItem, QLabel, QComboBox)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineDownloadRequest
 
@@ -30,7 +30,7 @@ class TitleBar(QWidget):
 
         # Кнопка сворачивания окна
         self.min_btn = QToolButton(self)
-        self.min_btn.setIcon(QIcon("assets/icons_dark_theme/minimize.png"))
+        self.min_btn.setIcon(QIcon(f"{self.parent_window.theme_icon_folder}/minimize.png"))
         self.min_btn.setFixedSize(32, 32)
         self.min_btn.setStyleSheet("background: transparent;")
         self.min_btn.clicked.connect(self.parent_window.showMinimized)
@@ -38,7 +38,7 @@ class TitleBar(QWidget):
 
         # Кнопка разворачивания/восстановления окна
         self.max_btn = QToolButton(self)
-        self.max_btn.setIcon(QIcon("assets/icons_dark_theme/maximize.png"))
+        self.max_btn.setIcon(QIcon(f"{self.parent_window.theme_icon_folder}/maximize.png"))
         self.max_btn.setFixedSize(32, 32)
         self.max_btn.setStyleSheet("background: transparent;")
         self.max_btn.clicked.connect(self.parent_window.toggle_maximize)
@@ -46,7 +46,7 @@ class TitleBar(QWidget):
 
         # Кнопка закрытия окна
         self.close_btn = QToolButton(self)
-        self.close_btn.setIcon(QIcon("assets/icons_dark_theme/close.png"))
+        self.close_btn.setIcon(QIcon(f"{self.parent_window.theme_icon_folder}/close.png"))
         self.close_btn.setFixedSize(32, 32)
         self.close_btn.setStyleSheet(
             "background: transparent;"
@@ -58,9 +58,9 @@ class TitleBar(QWidget):
 
     def update_maximize_icon(self):
         if self.parent_window.isMaximized():
-            self.max_btn.setIcon(QIcon("assets/icons_dark_theme/restore.png"))
+            self.max_btn.setIcon(QIcon(f"{self.parent_window.theme_icon_folder}/restore.png"))
         else:
-            self.max_btn.setIcon(QIcon("assets/icons_dark_theme/maximize.png"))
+            self.max_btn.setIcon(QIcon(f"{self.parent_window.theme_icon_folder}/maximize.png"))
 
     # Реализация перетаскивания окна за область заголовка
     def mousePressEvent(self, event):
@@ -113,13 +113,13 @@ class BrowserTab(QWidget):
                            ("forward", self.browser.forward),
                            ("reload", self.browser.reload),
                            ("add", self.open_new_tab)]:
-            act = QAction(QIcon(f"assets/icons_dark_theme/{icon}.png"), "", self)
+            act = QAction(QIcon(f"{self.parent_browser.theme_icon_folder}/{icon}.png"), "", self)
             act.triggered.connect(func)
             self.toolbar.addAction(act)
 
     def add_right_buttons(self):
         btn = QToolButton(self)
-        btn.setIcon(QIcon("assets/icons_dark_theme/menu.png"))
+        btn.setIcon(QIcon(f"{self.parent_browser.theme_icon_folder}/menu.png"))
         btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         btn.setStyleSheet(
             "QToolButton {background-color:#0e0e0e; color:#fff; border:none; border-radius:8px;}"
@@ -213,13 +213,14 @@ class Browser(QMainWindow):
         # Загрузка сохранённых данных
         data = load_data()
         self.history_data = data.get("history", [])
-        self.settings_data = data.get("settings", {"homepage": "http://www.google.com"})
-        self.add_tab()
-        self.apply_dark_theme()
+        self.settings_data = data.get("settings", {"homepage": "http://www.google.com", "language": "ru", "theme": "dark"})
+        # Установка темы на основе настроек
+        self.apply_theme()
         self.download_table = None
         # Инициализация кастомной панели заголовка
         self.title_bar = TitleBar(self)
         self.setMenuWidget(self.title_bar)
+        self.add_tab()
 
     def toggle_maximize(self):
         if self.isMaximized():
@@ -291,6 +292,28 @@ class Browser(QMainWindow):
         QToolButton:hover {background-color:#2c2c2c; border:none;}
         QToolTip {background-color:#212121; color:#fff; font-size:13px; border:none; border-radius:8px; padding:2px; font-family:Manrope;}
         """)
+        self.theme_icon_folder = "assets/icons_dark_theme"
+
+    def apply_light_theme(self):
+        self.setStyleSheet("""
+        QWidget {background-color:#ffffff; color:#000; font-family:Manrope; font-size:13px; border:none; padding:0;}
+        QTabWidget::pane {background-color:#ffffff; padding:2px 0 0 0;}
+        QTabBar {background-color:#ffffff; padding:2px; margin:4px;}
+        QTabBar::tab {background-color:#ffffff; color:#000; padding:5px; border-radius:8px; margin:4px; border: 1px solid #ccc;}
+        QTabBar::tab:selected {background-color:#e0e0e0; border-radius:8px;}
+        QTabBar::tab:hover {background-color:#f0f0f0; border:1px solid #aaa;}
+        QLineEdit {background-color:#f5f5f5; color:#000; padding:5px; border-radius:8px; font-family:Manrope; font-size:13px; border:1px solid #ccc;}
+        QToolBar, QToolButton {background-color:#ffffff; color:#000; border:none; margin:0 5px; border-radius:8px;}
+        QToolButton:hover {background-color:#e0e0e0; border:none;}
+        QToolTip {background-color:#f0f0f0; color:#000; font-size:13px; border:none; border-radius:8px; padding:2px; font-family:Manrope;}
+        """)
+        self.theme_icon_folder = "assets/icons_light_theme"
+
+    def apply_theme(self):
+        if self.settings_data.get("theme", "dark") == "dark":
+            self.apply_dark_theme()
+        else:
+            self.apply_light_theme()
 
     def add_tab(self, url=None):
         # Используем домашнюю страницу из настроек, если URL не передан
@@ -317,18 +340,44 @@ class Browser(QMainWindow):
         settings_tab = QWidget()
         layout = QVBoxLayout()
         settings_tab.setLayout(layout)
-        # Пример настройки: выбор домашней страницы
+        # Настройка домашней страницы
         homepage_label = QLabel("Домашняя страница:")
         homepage_edit = QLineEdit()
         homepage_edit.setText(self.settings_data.get("homepage", "http://www.google.com"))
-        save_button = QPushButton("Сохранить настройки")
         layout.addWidget(homepage_label)
         layout.addWidget(homepage_edit)
+        # Настройка локализации
+        lang_label = QLabel("Локализация:")
+        lang_combo = QComboBox()
+        lang_combo.addItem("Русский", "ru")
+        lang_combo.addItem("English", "en")
+        lang_value = self.settings_data.get("language", "ru")
+        index = lang_combo.findData(lang_value)
+        if index != -1:
+            lang_combo.setCurrentIndex(index)
+        layout.addWidget(lang_label)
+        layout.addWidget(lang_combo)
+        # Настройка темы
+        theme_label = QLabel("Тема:")
+        theme_combo = QComboBox()
+        theme_combo.addItem("Темная", "dark")
+        theme_combo.addItem("Светлая", "light")
+        theme_value = self.settings_data.get("theme", "dark")
+        index = theme_combo.findData(theme_value)
+        if index != -1:
+            theme_combo.setCurrentIndex(index)
+        layout.addWidget(theme_label)
+        layout.addWidget(theme_combo)
+        # Кнопка сохранения настроек
+        save_button = QPushButton("Сохранить настройки")
         layout.addWidget(save_button)
 
         def save_settings():
             self.settings_data["homepage"] = homepage_edit.text().strip() or "http://www.google.com"
+            self.settings_data["language"] = lang_combo.currentData()
+            self.settings_data["theme"] = theme_combo.currentData()
             self.save_data()
+            self.apply_theme()
         save_button.clicked.connect(save_settings)
         self.tabs.add_tab(settings_tab, "Настройки")
 

@@ -10,7 +10,8 @@ class CustomTabBar(QTabBar):
         self.parent().tabCloseRequested.emit(index)
     def add_custom_close_button(self, index):
         btn = QPushButton()
-        btn.setIcon(QIcon("assets/icons_dark_theme/close_small.png"))
+        # Используем тему из родительского окна
+        btn.setIcon(QIcon(f"{self.parent().parent().theme_icon_folder}/close_small.png"))
         btn.setStyleSheet("background: transparent; border: none;")
         btn.clicked.connect(lambda: self.close_tab(index))
         self.setTabButton(index, QTabBar.ButtonPosition.RightSide, btn)

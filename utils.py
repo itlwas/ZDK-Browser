@@ -34,7 +34,9 @@ def load_data():
     return {
         "history": [],
         "settings": {
-            "homepage": "http://www.google.com"
+            "homepage": "http://www.google.com",
+            "language": "ru",
+            "theme": "dark"
         }
     }
 
